@@ -67,37 +67,65 @@ Redirect URLs**:
 
 O endereço de produção deve usar o domínio real do projeto.
 
-### Políticas de autenticação
+### Segurança e proteção de dados
 
 Em **Authentication → Sign In / Providers → User signups**, mantenha
 **Confirm email** habilitado para impedir que endereços não verificados
-acessem as contas.
+acessem as contas. O link de confirmação retorna para `/auth/callback`; por
+isso, configure as URLs de retorno indicadas acima.
 
 Em **Authentication → Sign In / Providers → Password**, configure:
 
 - Comprimento mínimo: 8 caracteres
 - Requisitos: letras minúsculas e maiúsculas, números e símbolos
 
-O Supabase Auth armazena senhas usando hashes bcrypt com salt aleatório. O
-aplicativo não cria nem armazena hashes de senha por conta própria.
+#### Senhas
+
+As senhas são enviadas ao Supabase Auth por conexão HTTPS. O Supabase as
+armazena usando bcrypt com salt; a aplicação não salva senhas nem cria hashes
+próprios. A senha não é incluída nos logs da aplicação.
+
+No cadastro, são exigidos pelo menos 8 caracteres, uma letra maiúscula, uma
+minúscula, um número e um símbolo aceito pelo Supabase. O limite de 72 bytes
+evita incompatibilidade com o limite do bcrypt. A senha de login é verificada
+pelo Supabase Auth.
+
+#### Validação do cadastro
+
+O nome completo deve conter ao menos duas partes e ter de 5 a 100 caracteres;
+o e-mail é validado e normalizado para minúsculas. Essas regras são aplicadas
+no formulário e novamente na Server Action, para que não dependam apenas do
+navegador.
 
 A migração
 `supabase/migrations/20261031000001_professional_signup_validation.sql`
-adiciona a validação do nome no hook **Before User Created**. Depois de
-executar a migração no SQL Editor, selecione essa função em **Authentication →
-Hooks → Before User Created**. A validação do formulário também ocorre no
-servidor, e o hook aplica a mesma regra a cadastros feitos diretamente pela
-API do Supabase.
+cria uma validação adicional de nome para o hook **Before User Created**.
+Execute-a no SQL Editor e selecione a função em **Authentication → Hooks →
+Before User Created**. Com o hook habilitado, a regra também é aplicada a
+cadastros feitos diretamente pela API do Supabase.
 
-Validações de formato ajudam a reduzir cadastros inválidos, mas não comprovam
-a identidade de uma pessoa. A confirmação de e-mail é necessária para isso;
-regras de nome não conseguem identificar todos os nomes fictícios.
+O Supabase Auth aplica limites de requisições e de envio de e-mails. No plano
+e configuração padrão, esses limites podem restringir testes frequentes; usar
+SMTP personalizado pode aumentar a cota de envio de e-mails, mas não remove
+os limites de requisições do Auth.
 
-Antes de disponibilizar o sistema ao público, publique uma política de
-privacidade com a identificação do controlador, finalidade e base legal para
-o uso dos dados, período de retenção, contato e instruções para exercer os
-direitos previstos na LGPD. Essas medidas técnicas não constituem, por si só,
-uma garantia de conformidade legal.
+#### Credenciais, banco e limites
+
+- Use somente a chave pública `anon`/`publishable` no navegador. Nunca exponha
+  `service_role`, chaves secretas ou credenciais SMTP no cliente, no Git ou em
+  variáveis `NEXT_PUBLIC_`.
+- Mantenha `.env.local` fora do controle de versão. Em produção, configure os
+  segredos no ambiente seguro do serviço de hospedagem.
+- As tabelas da migração inicial usam políticas RLS; revise e teste as
+  políticas antes de disponibilizar novos dados ou operações.
+- A validação de nome e e-mail reduz entradas inválidas, mas não comprova a
+  identidade do profissional nem impede toda conta fictícia. A confirmação
+  verifica acesso ao e-mail, não a identidade civil.
+- A confirmação de e-mail e essas medidas técnicas não garantem, sozinhas,
+  conformidade com a LGPD. Antes de disponibilizar o sistema ao público,
+  publique uma política de privacidade com controlador, finalidade e base
+  legal, retenção, contato e instruções para exercício dos direitos dos
+  titulares.
 
 ## Autenticação disponível
 
