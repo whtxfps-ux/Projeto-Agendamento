@@ -1,6 +1,17 @@
 # Projeto-Agendamento
 Sistema de cadastro e agendamento de clientes.
 
+## Supabase
+
+A migração inicial está em `supabase/migrations/20261031000000_initial_booking_schema.sql`.
+Execute o conteúdo uma vez no SQL Editor do Supabase para criar negócios, serviços,
+horários, agendamentos, políticas de segurança por linha (RLS) e a função pública de
+reserva. Essa função cria agendamentos de forma atômica e evita horários sobrepostos.
+
+O projeto lê `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` do arquivo
+`.env.local`. A chave deve ser a chave pública anon/publishable do projeto; nunca use
+uma chave service-role ou secreta em uma variável `NEXT_PUBLIC_`.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
