@@ -293,6 +293,45 @@ a {
     box-shadow 150ms ease;
 }
 
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap input {
+  padding-right: 46px;
+}
+
+.password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #777067;
+  cursor: pointer;
+}
+
+.password-visibility:hover {
+  background: #f3eee8;
+  color: var(--foreground);
+}
+
+.password-visibility:focus-visible {
+  outline: 2px solid #cb8466;
+  outline-offset: 1px;
+}
+
+.password-visibility svg {
+  width: 19px;
+  height: 19px;
+}
+
 .field input::placeholder {
   color: #aaa39b;
 }
@@ -300,6 +339,24 @@ a {
 .field input:focus {
   border-color: #cb8466;
   box-shadow: 0 0 0 3px #c9775a1a;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: #bf634f;
+}
+
+.field-error {
+  color: #984b38;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.field-hint {
+  color: #918a82;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .submit-button {

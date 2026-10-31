@@ -3,7 +3,13 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  validateEmail,
+  validateSignup,
+  type SignupFieldErrors,
+} from "@/lib/auth/validation";
 import { createClient } from "@/lib/supabase/client";
+import { signUpProfessional } from "@/app/actions/auth";
 
 type AuthMode = "login" | "signup";
 
@@ -13,6 +19,8 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [message, setMessage] = useState(
     initialError
       ? "Não foi possível confirmar seu e-mail. Peça um novo link de confirmação ou tente entrar."
@@ -23,6 +31,14 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
 
   function changeMode(nextMode: AuthMode) {
     setMode(nextMode);
+    setIsPasswordVisible(false);
+    setMessage("");
+    setIsError(false);
+    setFieldErrors({});
+  }
+
+  function clearFieldError(field: keyof SignupFieldErrors) {
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
     setMessage("");
     setIsError(false);
   }
@@ -31,39 +47,56 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
     event.preventDefault();
     setMessage("");
     setIsError(false);
+    setFieldErrors({});
+
+    if (mode === "signup") {
+      const validation = validateSignup({ name, email, password });
+      if (!validation.valid) {
+        setFieldErrors(validation.fieldErrors);
+        setIsError(true);
+        setMessage("Revise os campos destacados.");
+        return;
+      }
+    } else {
+      const emailError = validateEmail(email);
+      if (emailError) {
+        setFieldErrors({ email: emailError });
+        setIsError(true);
+        setMessage("Revise o e-mail informado.");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
       const normalizedEmail = email.trim().toLowerCase();
 
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const result = await signUpProfessional({
+          name,
           email: normalizedEmail,
           password,
-          options: {
-            data: { full_name: name.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
         });
 
-        if (error) {
-          throw error;
+        if (!result.success) {
+          setFieldErrors(result.fieldErrors ?? {});
+          setIsError(true);
+          setMessage(result.message);
+          return;
         }
 
-        if (data.session) {
+        if (result.authenticated) {
           router.replace("/dashboard");
           router.refresh();
           return;
         }
 
-        setMessage(
-          "Conta criada! Confira sua caixa de entrada e confirme seu e-mail para continuar.",
-        );
-        setIsLoading(false);
+        setMessage(result.message);
         return;
       }
 
+      const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -172,15 +205,23 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
           <form className="auth-form" onSubmit={handleSubmit}>
             {mode === "signup" && (
               <label className="field">
-                <span>Seu nome</span>
+                <span>Nome completo</span>
                 <input
                   autoComplete="name"
+                  maxLength={100}
                   name="name"
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Como podemos te chamar?"
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    clearFieldError("name");
+                  }}
+                  placeholder="Ex.: Ana Júlia da Silva"
                   required
+                  aria-invalid={Boolean(fieldErrors.name)}
                   value={name}
                 />
+                {fieldErrors.name && (
+                  <span className="field-error">{fieldErrors.name}</span>
+                )}
               </label>
             )}
 
@@ -189,29 +230,96 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
               <input
                 autoComplete="email"
                 name="email"
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  clearFieldError("email");
+                }}
                 placeholder="voce@email.com"
                 required
                 type="email"
+                aria-invalid={Boolean(fieldErrors.email)}
                 value={email}
               />
+              {fieldErrors.email && (
+                <span className="field-error">{fieldErrors.email}</span>
+              )}
             </label>
 
-            <label className="field">
-              <span>Senha</span>
-              <input
-                autoComplete={
-                  mode === "signup" ? "new-password" : "current-password"
-                }
-                minLength={8}
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Pelo menos 8 caracteres"
-                required
-                type="password"
-                value={password}
-              />
-            </label>
+            <div className="field">
+              <label htmlFor="password">Senha</label>
+              <div className="password-input-wrap">
+                <input
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
+                  id="password"
+                  minLength={mode === "signup" ? 8 : undefined}
+                  name="password"
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearFieldError("password");
+                  }}
+                  placeholder={
+                    mode === "signup"
+                      ? "8+ caracteres, maiúscula, minúscula, número e símbolo"
+                      : "Sua senha"
+                  }
+                  required
+                  type={isPasswordVisible ? "text" : "password"}
+                  maxLength={mode === "signup" ? 72 : undefined}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  value={password}
+                />
+                <button
+                  aria-label={isPasswordVisible ? "Ocultar senha" : "Mostrar senha"}
+                  aria-pressed={isPasswordVisible}
+                  className="password-visibility"
+                  onClick={() => setIsPasswordVisible((visible) => !visible)}
+                  type="button"
+                >
+                  {isPasswordVisible ? (
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M3 3l18 18M10.6 10.7a2 2 0 002.7 2.7M9.9 5.2A10.7 10.7 0 0112 5c5.5 0 9 7 9 7a15.7 15.7 0 01-3 3.8M6.2 6.2C3.9 7.7 2 12 2 12s3.5 7 10 7a9.7 9.7 0 004.1-.9"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.7"
+                      />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {mode === "signup" && (
+                <span className="field-hint">
+                  Use 8+ caracteres, com maiúscula, minúscula, número e símbolo.
+                </span>
+              )}
+              {fieldErrors.password && (
+                <span className="field-error">{fieldErrors.password}</span>
+              )}
+            </div>
 
             {message && (
               <p
@@ -233,7 +341,7 @@ export function AuthForm({ initialError }: { initialError: boolean }) {
           </form>
 
           <p className="privacy-note">
-            Seus dados ficam protegidos e só você acessa sua conta.
+            Usamos seu nome e e-mail para criar e proteger sua conta.
           </p>
         </div>
 

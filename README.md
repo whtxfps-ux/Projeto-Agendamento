@@ -62,9 +62,42 @@ adicione os endereços de retorno em **Authentication → URL Configuration →
 Redirect URLs**:
 
 - `http://localhost:3000/auth/callback` para desenvolvimento local
+- `http://127.0.0.1:3000/auth/callback` se acessar o servidor pelo endereço IP local
 - `https://seu-dominio.com/auth/callback` quando publicar o sistema
 
 O endereço de produção deve usar o domínio real do projeto.
+
+### Políticas de autenticação
+
+Em **Authentication → Sign In / Providers → User signups**, mantenha
+**Confirm email** habilitado para impedir que endereços não verificados
+acessem as contas.
+
+Em **Authentication → Sign In / Providers → Password**, configure:
+
+- Comprimento mínimo: 8 caracteres
+- Requisitos: letras minúsculas e maiúsculas, números e símbolos
+
+O Supabase Auth armazena senhas usando hashes bcrypt com salt aleatório. O
+aplicativo não cria nem armazena hashes de senha por conta própria.
+
+A migração
+`supabase/migrations/20261031000001_professional_signup_validation.sql`
+adiciona a validação do nome no hook **Before User Created**. Depois de
+executar a migração no SQL Editor, selecione essa função em **Authentication →
+Hooks → Before User Created**. A validação do formulário também ocorre no
+servidor, e o hook aplica a mesma regra a cadastros feitos diretamente pela
+API do Supabase.
+
+Validações de formato ajudam a reduzir cadastros inválidos, mas não comprovam
+a identidade de uma pessoa. A confirmação de e-mail é necessária para isso;
+regras de nome não conseguem identificar todos os nomes fictícios.
+
+Antes de disponibilizar o sistema ao público, publique uma política de
+privacidade com a identificação do controlador, finalidade e base legal para
+o uso dos dados, período de retenção, contato e instruções para exercer os
+direitos previstos na LGPD. Essas medidas técnicas não constituem, por si só,
+uma garantia de conformidade legal.
 
 ## Autenticação disponível
 
